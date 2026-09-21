@@ -47,7 +47,7 @@ IMAGES_DIR = Path("images")
 
 def build_dataframe() -> pd.DataFrame:
     rows = {
-        industry: dict(zip(YEARS, meta["values"])) | {"区分": meta["sector"]}
+        industry: dict(zip(YEARS, meta["values"], strict=True)) | {"区分": meta["sector"]}
         for industry, meta in DATA.items()
     }
     df = pd.DataFrame(rows).T
@@ -57,9 +57,9 @@ def build_dataframe() -> pd.DataFrame:
 
 def plot_ranking(df: pd.DataFrame, path: Path) -> None:
     fig, ax = plt.subplots(figsize=(10, 6))
-    colors = df["区分"].map(SECTOR_COLORS)
-    ax.barh(df.index[::-1], df[LATEST_YEAR][::-1], color=colors[::-1])
-    for y, value in enumerate(df[LATEST_YEAR][::-1]):
+    dfr = df.iloc[::-1]
+    ax.barh(dfr.index, dfr[LATEST_YEAR], color=dfr["区分"].map(SECTOR_COLORS))
+    for y, value in enumerate(dfr[LATEST_YEAR]):
         ax.text(value + 0.15, y, f"{value:.1f}%", va="center", fontsize=10)
     handles = [
         plt.Rectangle((0, 0), 1, 1, color=SECTOR_COLORS[s])
@@ -81,14 +81,16 @@ def plot_heatmap(df: pd.DataFrame, path: Path) -> None:
     im = ax.imshow(values, cmap="YlGnBu", aspect="auto")
     ax.set_xticks(range(len(YEARS)), YEARS)
     ax.set_yticks(range(len(df.index)), df.index)
+    threshold = (values.max() + values.min()) / 2
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
             ax.text(
                 j, i, f"{values[i, j]:.1f}",
                 ha="center", va="center", fontsize=10,
+                color="white" if values[i, j] > threshold else "black",
             )
     fig.colorbar(im, ax=ax, label="売上高経常利益率（%）")
-    ax.set_title("業種別 売上高経常利益率の推移（2022–2024年度）", fontsize=14)
+    ax.set_title(f"業種別 売上高経常利益率の推移（{YEARS[0]}–{YEARS[-1]}）", fontsize=14)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
